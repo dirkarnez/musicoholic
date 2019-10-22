@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <tchar.h>
 
 #define _ATL_CSTRING_EXPLICIT_CONSTRUCTORS      // some CString constructors will be explicit
@@ -84,24 +85,17 @@ int main()
 	__C(pDeviceEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &pDevice));
 	CComPtr<IAudioSessionManager2> pAudioSessionManager2;
 	__C(pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, NULL, (VOID**)&pAudioSessionManager2));
-	CComPtr<IAudioSessionEnumerator> pAudioSessionEnumerator;
-	__C(pAudioSessionManager2->GetSessionEnumerator(&pAudioSessionEnumerator));
-	INT nSessionCount;
-	__C(pAudioSessionEnumerator->GetCount(&nSessionCount));
-	_tprintf(_T("nSessionCount %d\n"), nSessionCount);
-	for (INT nSessionIndex = 0; nSessionIndex < nSessionCount; nSessionIndex++)
+	
+	for (;;)
 	{
-		CComPtr<IAudioSessionControl> pSessionControl;
-		if (FAILED(pAudioSessionEnumerator->GetSession(nSessionIndex, &pSessionControl)))
-			continue;
-		CComHeapPtr<WCHAR> pszDisplayName;
-		__C(pSessionControl->GetDisplayName(&pszDisplayName));
-		_tprintf(_T("nSessionIndex %d, pszDisplayName \"%s\"\n"), nSessionIndex, CString(pszDisplayName));
-		CNotification* pNotification = new CNotification(nSessionIndex);
-		__C(pSessionControl->RegisterAudioSessionNotification(pNotification));
-	}
-	for (; ; )
-	{
+		system("cls");
+		CComPtr<IAudioSessionEnumerator> pAudioSessionEnumerator;
+		__C(pAudioSessionManager2->GetSessionEnumerator(&pAudioSessionEnumerator));
+
+		INT nSessionCount;
+		__C(pAudioSessionEnumerator->GetCount(&nSessionCount));
+		_tprintf(_T("nSessionCount %d\n"), nSessionCount);
+
 		for (INT nSessionIndex = 0; nSessionIndex < nSessionCount; nSessionIndex++)
 		{
 			CComPtr<IAudioSessionControl> pSessionControl;
@@ -109,17 +103,23 @@ int main()
 				continue;
 			}
 
+			CComHeapPtr<WCHAR> pszDisplayName;
+			__C(pSessionControl->GetDisplayName(&pszDisplayName));
+
+			CNotification* pNotification = new CNotification(nSessionIndex);
+			__C(pSessionControl->RegisterAudioSessionNotification(pNotification));
+
 			CComQIPtr<IAudioMeterInformation> pMeterInformation(pSessionControl);
 			DWORD nMask;
 			__C(pMeterInformation->QueryHardwareSupport(&nMask));
 			FLOAT fPeakValue;
 			__C(pMeterInformation->GetPeakValue(&fPeakValue));
+
 			if (fPeakValue <= 0) {
 				continue;
 			}
-			_tprintf(_T("nSessionIndex %d, fPeakValue %.2f, nMask 0x%x\n"), nSessionIndex, fPeakValue, nMask);
+			_tprintf(_T("nSessionIndex %d, pszDisplayName \"%s\", fPeakValue %.2f, nMask 0x%x\n"), nSessionIndex, CString(pszDisplayName).GetString(), fPeakValue, nMask);
 		}
-		//Sleep(1000);
 	}
 	//Sleep(INFINITE);
 	CoUninitialize();
